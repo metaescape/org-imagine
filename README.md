@@ -19,16 +19,20 @@ this is my [[file:~/keyboards.pptx][custom keybinding]]
 
 - org-imagine then inserts the image link below and call `org-redisplay-inline-images` to show image
 
-after:
+after (require `libreoffice`, `pdftoppm`):
 ```elisp
 #+IMAGINE: pptsnap.py -p 2
 this is my [[file:~/keyboards.pptx][custom keybinding]]
 [[file:./.org-imagine/keyboards-20220903232619-25822.png]]
 ```
 
+
+Replace pptsnap.py with other executable in `org-imagine-view-dir`. (e.g. pdfsnap.py, pptsnap.py)
+
+You can also write your own visualizer script in `org-imagine-view-dir`, make sure it is executable
+
 `org-imagine-clear-cache` to clear unlinked image files (like garbage-collection)
 
-You can write your own visualizer script in `org-imagine-view-dir`, make sure it is executable
 
 ## Customization 
 
