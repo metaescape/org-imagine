@@ -19,6 +19,7 @@
 (defun org-imagine-clear-cache (&optional dir)
   "clear cache files that not mentioned by files in current project."
   (interactive)
+  (require 'projectile)
   (let ((root (projectile-project-root (buffer-file-name)))
         (cache-dir (if dir dir org-imagine-cache-dir)))
     (dolist (imgpath (directory-files-recursively cache-dir ""))

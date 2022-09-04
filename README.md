@@ -31,7 +31,7 @@ Replace pptsnap.py with other executable in `org-imagine-view-dir`. (e.g. pdfsna
 
 You can also write your own visualizer script in `org-imagine-view-dir`, make sure it is executable
 
-`org-imagine-clear-cache` to clear unlinked image files (like garbage-collection)
+`org-imagine-clear-cache`(require projectile) to clear unlinked image files (like garbage-collection)
 
 
 ## Customization 
