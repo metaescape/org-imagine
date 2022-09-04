@@ -38,13 +38,13 @@ def get_target_image_name(args, path):
     return f"{filename}-{timestamp}-{hashcode[-5:]}"
 
 def extract_timestamp_to_img(path, scale, imgpath=''):
-    time_reg = r"(?<=\[)\d{4}-\d{2}-\d{2} [A-Z][a-z]{2}(?= \d{2}:\d{2})?(?=\])"
+    time_reg = r"(?<=\[)(\d{4}-\d{2}-\d{2} [A-Z][a-z]{2})( \d{2}:\d{2})?(?=\])"
     times = []
     with open(path, "r") as f:
         for line in f.readlines():
             timestamp = re.findall(time_reg, line)
             for t in timestamp:
-                times.append(pd.Timestamp(t[:10]))
+                times.append(pd.Timestamp(t[0]))
 
     ctimes = Counter(times)
     plt.figure(figsize=(8*scale, 2*scale))
