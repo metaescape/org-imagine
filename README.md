@@ -15,11 +15,11 @@ this is my [[file:~/keyboards.pptx][custom keybinding]]
 
 - M-x org-imagine-view
 
-- pptsnap.py will generate the preview of the second page of `~/keyboards.pptx` in `org-imagine-cache-dir` with naming convention  `filename-lastmodified-hash.png`
+- pptsnap.py (require `libreoffice`, `pdftoppm`) will generate the preview of the second page of `~/keyboards.pptx` in `org-imagine-cache-dir` with naming convention  `filename-lastmodified-hash.png`
 
 - org-imagine then inserts the image link below and call `org-redisplay-inline-images` to show image
 
-after (require `libreoffice`, `pdftoppm`):
+after:
 ```elisp
 #+IMAGINE: pptsnap.py -p 2
 this is my [[file:~/keyboards.pptx][custom keybinding]]
