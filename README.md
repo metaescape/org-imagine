@@ -27,7 +27,7 @@ this is my [[file:~/keyboards.pptx][custom keybinding]]
 ```
 
 
-Replace pptsnap.py with other executable in `org-imagine-view-dir`. (e.g. pdfsnap.py, pptsnap.py)
+Replace pptsnap.py with other executable in `org-imagine-view-dir`. (e.g. pdfsnap.py for pdf file links, timemap.py for gtd/journal file links)
 
 You can also write your own visualizer script in `org-imagine-view-dir`, make sure it is executable
 
