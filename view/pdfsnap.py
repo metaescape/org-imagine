@@ -56,10 +56,10 @@ def get_path_and_page(link, page):
     pdf:~/manual/DL_en.pdf::790++0.00
     return (/home/user/manual/DL_en.pdf, 790)
     """
-    assert link[:5] == "file:" or link[:4] == "pdf:"
-
-    # get ~/manual/DL_en.pdf::790++0.00
-    fullpath = link.split(":", 1)[1] 
+    fullpath = link
+    if link[:5] == "file:" or link[:4] == "pdf:":
+        # get ~/manual/DL_en.pdf::790++0.00
+        fullpath = link.split(":", 1)[1] 
 
     # get (~/manual/DL_en.pdf, 790)
     if "::" in fullpath:

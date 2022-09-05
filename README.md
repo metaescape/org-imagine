@@ -3,7 +3,7 @@ An org element visualization decorator
 
 (currently only support `file:` or `pdf:` link type)
 
-<img src="./org-imagine2.gif" alt="Cover" width="100%"/>
+<img src="./org-imagine2.gif" alt="Cover" width="80%"/>
 
 ## Usage
 
