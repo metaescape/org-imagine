@@ -16,6 +16,17 @@
 
 (defvar org-imagine-cache-dir "./.org-imagine")
 
+(defvar org-imagine-with-width 600
+  "nil or an integer to specify image size, if non nil
+org-imagine will insert #+ATTR_ORG: :width `org-imagine-with-width` before img link
+")
+
+
+(defvar org-imagine-is-overwrite nil
+  "when true, existing png file link will be overwrite by a new link
+after execute org-image-view
+")
+
 ;;;###autoload
 (defun org-imagine-clear-cache (&optional dir)
   "clear cache files that not mentioned by files in current project."
@@ -83,20 +94,33 @@ then convert it to /full/path/to/pptsnap.py"
         (replace-regexp-in-string (concat "^" bin) viewer cmd)
       cmd)))
 
+
 (defun org-imagine--insert-below (filepath)
   (unless (string-blank-p (org-imagine--get-line-below))
     (next-line))
   (end-of-line)
+  ;; (when org-imagine-is-overwrite
+  ;;   (let (path (org-imagine--get-lin))
+  ;;     (prin1 path)
+  ;;     (when (and path (string-match-p "\\.png$" path)) (org-imagine--delete-next-line))))
+
+  (when org-imagine-with-width
+    (insert (format "\n#+ATTR_ORG: :width %s" org-imagine-with-width)))
   (insert (format "\n[[file:%s]]" filepath))
   (org-redisplay-inline-images))
 
-
-(defun org-imagine-get-link-below ()
+(defun org-imagine--get-link-below ()
   (save-excursion
     (beginning-of-line)
     (let ((regexp "\\[\\["))
       (when (re-search-forward regexp nil t)
         (org-imagine-extract-org-link)))))
+
+
+(defun org-imagine-delete-next-line ()
+  (save-excursion
+    (next-line)
+    (kill-whole-line)))
 
 
 (defun org-imagine-extract-org-link ()
@@ -109,9 +133,11 @@ then convert it to /full/path/to/pptsnap.py"
 (defun org-imagine--fill-cmd-input (cmd)
   "template-expansion for %f, %l"
   (let* ((template-content (org-imagine--get-input-content cmd))
+         (x (prin1 template-content))
          (template (car template-content))
          (content (cadr template-content))
          cmd-input target-path)
+    (message target-path)
     (if template
         (setq cmd-input (replace-regexp-in-string template content cmd))
       (setq cmd-input (concat cmd (format " -l \"%s\"" content))))
@@ -135,6 +161,7 @@ then convert it to /full/path/to/pptsnap.py"
           (setq output-path (concat output-path ".png"))))
       (list cmd-output output-path))))
 
+
 (defun path-no-ext? (path)
   "check if `path` has no extension"
   (equal (f-no-ext path) path)
@@ -147,8 +174,10 @@ then convert it to /full/path/to/pptsnap.py"
   (format-time-string "%Y%m%d%H%M%S"
                       (nth 5 (file-attributes file))))
 
+
 (defun org-imagine--get-hash (string n)
   (substring (secure-hash 'sha256 string) 0 n))
+
 
 (defun org-imagine--get-output-path (path cmd)
   "generate output image name without extension"
@@ -171,11 +200,13 @@ then convert it to /full/path/to/pptsnap.py"
             modified
             hash)))
 
+
 (defun org-imagine--get-line-below ()
   (save-excursion
     (beginning-of-line)
     (next-line)
     (org-imagine--get-line-at-point)))
+
 
 (defun org-imagine--get-input-content (cmd)
   "extract org element based on template type, 
@@ -183,14 +214,15 @@ e.g. %f will drive org-imagine to extrat file path in the next line"
   (cond
    ((string-match-p "%f" cmd)
     (list "%f" (org-imagine--extract-path-from-link
-                (org-imagine-get-link-below))))
+                (org-imagine--get-link-below))))
    ((string-match-p "%l" cmd)
     (list "%l" (org-imagine--get-line-below)))
    (t
     (if (string-blank-p (org-imagine--get-line-below))
         (list "%f" "") ;; signal: don't add new args
       (list nil (org-imagine--extract-path-from-link
-                 (org-imagine-get-link-below)))))))
+                 (org-imagine--get-link-below)))))))
+
 
 (defun org-imagine-get-user-specified-target (imagine-line &optional default)
   "extract content in  %{ }"
@@ -201,6 +233,7 @@ e.g. %f will drive org-imagine to extrat file path in the next line"
           default
         out))))
 
+
 (defun org-imagine--extract-path-from-link (link)
   "get pure path from org link, e.g [[file:~/abc.org::12]] return ~/abc.org
 also convert org-id to file path"
@@ -209,18 +242,23 @@ also convert org-id to file path"
                 (org-id-find-id-file
                  (concat "" (substring link (length "id:")))))
                ((string-prefix-p "pdf:" link)
-                (org-imagine--path-trim-trail "pdf:" link))
+                (org-imagine--path-trim-tail "pdf:" link))
                ((string-prefix-p "file:" link)
-                (org-imagine--path-trim-trail "file:" link))
-               (t (org-imagine--path-trim-trail "" link)))))
-    (when (file-exists-p path)
+                (org-imagine--path-trim-tail "file:" link))
+               ((string-prefix-p "http" link)
+                link)
+               (t (org-imagine--path-trim-tail "" link)))))
+    (when (or (string-prefix-p "http" link)
+              (file-exists-p path))
       path)))
 
-(defun org-imagine--path-trim-trail (prefix link)
+
+(defun org-imagine--path-trim-tail (prefix link)
   "retain substring before `::`"
   (replace-regexp-in-string
    "::.*$"
    "" 
    (concat "" (substring link (length prefix)))))
+
 
 (provide 'org-imagine)
