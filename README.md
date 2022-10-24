@@ -1,7 +1,12 @@
 # org-imagine
 An org element visualization decorator
 
-(currently only support `file:` or `pdf:` link type)
+currently support org object:
+- %f: 
+ - `[[file:path_of_file::page]]` 
+ - `[[pdf:]]`
+ - `[[http://url_of_image.jpg]]`
+- %l: the content of next line
 
 <img src="./org-imagine2.gif" alt="Cover" width="80%"/>
 
@@ -43,6 +48,7 @@ Using `org-imagine-clear-cache`(require projectile) to clear unlinked image file
   :load-path "~/.emacs.d/site-lisp/org-imagine/"
   :config
   (setq org-imagine-view-dir "./view/"
-        org-imagine-cache-dir "./.org-imagine")
+        org-imagine-cache-dir "./.org-imagine"
+        org-imagine-with-width 600)  ;; insert #+ATTR_ORG to set image width
   )
 ```
