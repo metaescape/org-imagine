@@ -1,6 +1,7 @@
 ;;; org-imagine.el ---  an org element visualization decorator -*- lexical-binding:t -*-
 (require 'org-element)
 
+
 (defgroup org-imagine nil
   "Insert a image related to an org element."
   :group 'org
@@ -8,13 +9,17 @@
   :link '(url-link :tag "Github" "https://github.com/metaescape/org-imagine.git")
   )
 
+
 (defvar org-imagine-dir
   (file-name-directory (locate-library "org-imagine")))
+
 
 (defvar org-imagine-view-dir
   (concat org-imagine-dir "view/"))
 
+
 (defvar org-imagine-cache-dir "./.org-imagine")
+
 
 (defvar org-imagine-with-width 600
   "nil or an integer to specify image size, if non nil
@@ -23,9 +28,10 @@ org-imagine will insert #+ATTR_ORG: :width `org-imagine-with-width` before img l
 
 
 (defvar org-imagine-is-overwrite nil
-  "when true, existing png file link will be overwrite by a new link
+  "when non, existing png file link will be overwrite by a new link
 after execute org-image-view
 ")
+
 
 ;;;###autoload
 (defun org-imagine-clear-cache (&optional dir)
@@ -45,9 +51,11 @@ after execute org-image-view
   (let ((reg "^[ \t]*#\\+IMAGINE:[ \t]*"))
     (replace-regexp-in-string reg "" imagine-line)))
 
+
 (defun org-imagine--get-line-at-point ()
   "current line without trailing newline"
   (replace-regexp-in-string "\n$" "" (thing-at-point 'line t)))
+
 
 ;;;###autoload
 (defun org-imagine-view ()
@@ -99,15 +107,28 @@ then convert it to /full/path/to/pptsnap.py"
   (unless (string-blank-p (org-imagine--get-line-below))
     (next-line))
   (end-of-line)
-  ;; (when org-imagine-is-overwrite
-  ;;   (let (path (org-imagine--get-lin))
-  ;;     (prin1 path)
-  ;;     (when (and path (string-match-p "\\.png$" path)) (org-imagine--delete-next-line))))
-
+  (when org-imagine-is-overwrite
+    (org-imagine--remove-link-below))
   (when org-imagine-with-width
     (insert (format "\n#+ATTR_ORG: :width %s" org-imagine-with-width)))
   (insert (format "\n[[file:%s]]" filepath))
   (org-redisplay-inline-images))
+
+
+(defun org-imagine--remove-link-below ()
+  (save-excursion
+    (next-line)
+    (beginning-of-line)
+    (let ((regexp "#\\+ATTR_ORG")
+          (line (thing-at-point 'line t)))
+      (when (string-match-p regexp line)
+        (kill-whole-line)))
+    (beginning-of-line)
+    (let ((regexp "\\[\\[file")
+          (line (thing-at-point 'line t)))
+      (when (string-match-p regexp line)
+        (kill-whole-line)))))
+
 
 (defun org-imagine--get-link-below ()
   (save-excursion
@@ -116,11 +137,6 @@ then convert it to /full/path/to/pptsnap.py"
       (when (re-search-forward regexp nil t)
         (org-imagine-extract-org-link)))))
 
-
-(defun org-imagine-delete-next-line ()
-  (save-excursion
-    (next-line)
-    (kill-whole-line)))
 
 
 (defun org-imagine-extract-org-link ()
@@ -133,7 +149,6 @@ then convert it to /full/path/to/pptsnap.py"
 (defun org-imagine--fill-cmd-input (cmd)
   "template-expansion for %f, %l"
   (let* ((template-content (org-imagine--get-input-content cmd))
-         (x (prin1 template-content))
          (template (car template-content))
          (content (cadr template-content))
          cmd-input target-path)
