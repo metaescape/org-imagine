@@ -21,14 +21,8 @@
 (defvar org-imagine-cache-dir "./.org-imagine")
 
 
-(defvar org-imagine-with-width 600
-  "nil or an integer to specify image size, if non nil
-org-imagine will insert #+ATTR_ORG: :width `org-imagine-with-width` before img link
-")
-
-
-(defvar org-imagine-is-overwrite nil
-  "when non, existing png file link will be overwrite by a new link
+(defvar org-imagine-is-overwrite t
+  "when non nil, existing png file link will be overwrite by a new link
 after execute org-image-view
 ")
 
@@ -46,6 +40,7 @@ after execute org-image-view
              (ret (shell-command cmd)))
         (when (not (eq ret 0))
           (delete-file imgpath))))))
+
 
 (defun org-imagine--get-cmd (imagine-line)
   (let ((reg "^[ \t]*#\\+IMAGINE:[ \t]*"))
@@ -75,6 +70,7 @@ after execute org-image-view
                (cmd-content (org-imagine--fill-cmd-input cmd))
                (cmd (car cmd-content))
                (content (cadr cmd-content))
+               (cmd-type (caddr cmd-content))
                (path (org-imagine--get-output-path content cmd))
                (cmd-outpath (org-imagine--fill-cmd-output cmd path))
                (final-cmd (car cmd-outpath))
@@ -83,7 +79,7 @@ after execute org-image-view
                (img-path (if img-path img-path cmd-out-path)))
           (if current-prefix-arg
               (message final-cmd))
-          (org-imagine--insert-below img-path)
+          (org-imagine--insert-below img-path cmd-type)
           )
         (goto-char marker)
         (move-marker marker nil) ; point nowhere for GC
@@ -103,26 +99,32 @@ then convert it to /full/path/to/pptsnap.py"
       cmd)))
 
 
-(defun org-imagine--insert-below (filepath)
-  (unless (string-blank-p (org-imagine--get-line-below))
-    (next-line))
+(defun org-imagine--insert-link-and-preview (filepath)
   (end-of-line)
-  (when org-imagine-is-overwrite
-    (org-imagine--remove-link-below))
-  (when org-imagine-with-width
-    (insert (format "\n#+ATTR_ORG: :width %s" org-imagine-with-width)))
   (insert (format "\n[[file:%s]]" filepath))
   (org-redisplay-inline-images))
 
 
-(defun org-imagine--remove-link-below ()
+(defun org-imagine--insert-below (filepath cmd-type) 
+  (next-line)
+  (when (not (equal "noinput" cmd-type))
+    (next-line))
+  (while (org-imagine--on-attr-comment)
+    (next-line))
+  (when org-imagine-is-overwrite
+    (org-imagine--remove-current-link)
+    (previous-line))
+  (org-imagine--insert-link-and-preview filepath))
+
+
+(defun org-imagine--on-attr-comment (&optional line)
+  (let ((regexp "#\\+ATTR_")
+        (line (if line line (thing-at-point 'line t))))
+    (string-match-p regexp line)))
+
+
+(defun org-imagine--remove-current-link ()
   (save-excursion
-    (next-line)
-    (beginning-of-line)
-    (let ((regexp "#\\+ATTR_ORG")
-          (line (thing-at-point 'line t)))
-      (when (string-match-p regexp line)
-        (kill-whole-line)))
     (beginning-of-line)
     (let ((regexp "\\[\\[file")
           (line (thing-at-point 'line t)))
@@ -138,7 +140,6 @@ then convert it to /full/path/to/pptsnap.py"
         (org-imagine-extract-org-link)))))
 
 
-
 (defun org-imagine-extract-org-link ()
   "Extract the link location at point."
   (interactive)
@@ -151,23 +152,30 @@ then convert it to /full/path/to/pptsnap.py"
   (let* ((template-content (org-imagine--get-input-content cmd))
          (template (car template-content))
          (content (cadr template-content))
-         cmd-input target-path)
-    (message target-path)
-    (if template
-        (setq cmd-input (replace-regexp-in-string template content cmd))
-      (setq cmd-input (concat cmd (format " -l \"%s\"" content))))
-    (list cmd-input content)))
+         target-path type)
+
+    (cond ((equal template "snap")
+           (setq cmd (concat cmd (format " -l \"%s\"" content)))
+           (setq type template))
+          ((equal template "noinput")
+           (setq type template))
+          (t
+           (setq cmd (replace-regexp-in-string template content cmd))
+           (setq type "normal")))
+    (list cmd content type)))
+
+
+(defun org-imagine--has-output-placeholder (cmd)
+  (or (string-match-p "%o" cmd) (string-match-p "%{.*}" cmd)))
 
 
 (defun org-imagine--fill-cmd-output (cmd target-path)
   "template-expansion for %o and %{}"
   (let (cmd-output)
-    (if (or (string-match-p "%o" cmd) (string-match-p "%{.*}" cmd))
+    (if (org-imagine--has-output-placeholder cmd)
         (setq cmd-output (replace-regexp-in-string "%o" target-path cmd))
-      (setq cmd-output
-            (if (string-blank-p (org-imagine--get-line-below))
-                cmd
-              (concat cmd (format " -d %s" org-imagine-cache-dir)))))
+      ;; add default -d option to snap cmd
+      (setq cmd-output (concat cmd (format " -d %s" org-imagine-cache-dir))))
     (let ((output-path
            (org-imagine-get-user-specified-target cmd-output target-path)))
       (when output-path
@@ -177,10 +185,14 @@ then convert it to /full/path/to/pptsnap.py"
       (list cmd-output output-path))))
 
 
+(defun org-imagine--on-attr-comment-or-blank ()
+  (or (string-blank-p (org-imagine--get-line-at-point))
+      (org-imagine--on-attr-comment)))
+
+
 (defun path-no-ext? (path)
   "check if `path` has no extension"
-  (equal (f-no-ext path) path)
-  )
+  (equal (f-no-ext path) path))
 
 
 (defun org-imagine--get-last-modifed (file)
@@ -226,17 +238,19 @@ then convert it to /full/path/to/pptsnap.py"
 (defun org-imagine--get-input-content (cmd)
   "extract org element based on template type, 
 e.g. %f will drive org-imagine to extrat file path in the next line"
-  (cond
-   ((string-match-p "%f" cmd)
-    (list "%f" (org-imagine--extract-path-from-link
-                (org-imagine--get-link-below))))
-   ((string-match-p "%l" cmd)
-    (list "%l" (org-imagine--get-line-below)))
-   (t
-    (if (string-blank-p (org-imagine--get-line-below))
-        (list "%f" "") ;; signal: don't add new args
-      (list nil (org-imagine--extract-path-from-link
-                 (org-imagine--get-link-below)))))))
+  (let ((next-line (org-imagine--get-line-below)))
+    (cond
+     ((string-match-p "%f" cmd)
+      (list "%f" (org-imagine--extract-path-from-link
+                  (org-imagine--get-link-below))))
+     ((string-match-p "%l" cmd) (list "%l" next-line))
+     ((or (string-blank-p next-line)
+          (org-imagine--on-attr-comment next-line))
+      ;; a cmd without input org-object, don't add -l or do expansion
+      (list "noinput" ""))
+     ;; snap command need -l
+     (t (list "snap" (org-imagine--extract-path-from-link
+                      (org-imagine--get-link-below)))))))
 
 
 (defun org-imagine-get-user-specified-target (imagine-line &optional default)
