@@ -4,7 +4,11 @@ Org-imagine is a visualization decorator for org-mode element, its purpose is to
 ## Install
 `cd ~/.emacs.d/site-lisp/; git clone git@github.com:metaescape/org-imagine.git`
 
-then install it from path(with `use-package`):
+
+`cd org-imagine; git submodule update --init` if you want use predifined visulization scripts in `org-imagine/view/`
+
+
+then install it with `use-package` or your favorite emacs package manager:
 ``` elisp
 (use-package org-imagine
   :load-path "~/.emacs.d/site-lisp/org-imagine/")
@@ -151,5 +155,3 @@ Yasnippets for quick decorate:
 
 
 中文的说明和讨论： [org-imagine： 对 org 对象进行可视化的插件](https://emacs-china.org/t/org-imagine-org/22134)
-
-
