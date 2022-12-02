@@ -1,6 +1,8 @@
 # org-imagine
 Org-imagine is a visualization decorator for org-mode element, its purpose is to make inserting images in emacs org-mode easier, programmatic, and more fun 
 
+<img src="./org-imagine2.gif" alt="Cover" width="80%"/>
+
 ## Install
 `cd ~/.emacs.d/site-lisp/; git clone git@github.com:metaescape/org-imagine.git`
 
@@ -98,8 +100,6 @@ Using `org-imagine-clear-cache`(require projectile) to clear unlinked image file
 
 
 ## other usage scenarios
-
-<img src="./org-imagine2.gif" alt="Cover" width="80%"/>
 
 - preview of drawio
 ```org
