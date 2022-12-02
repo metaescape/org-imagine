@@ -1,32 +1,36 @@
 # org-imagine
-An org element visualization decorator
-
-currently support org object:
-- %f: 
- - `[[file:path_of_file::page]]` 
- - `[[pdf:]]`
- - `[[http://url_of_image.jpg]]`
-- %l: the content of next line
+Org-imagine is a visualization decorator for org-mode element, its purpose is to make inserting images in emacs org-mode easier, programmatic, and more fun 
 
 <img src="./org-imagine2.gif" alt="Cover" width="80%"/>
 
-## Usage
+## Install
+``` elisp
+(use-package org-imagine
+  :load-path "~/.emacs.d/site-lisp/org-imagine/")
+```
 
-before:
+
+# Usage
+
+Here are two examples for explaining how to use org-imagine.
+
+
+## Use case: preview PPT link
+- before executing org-imagine-view:
 ```elisp
 #+IMAGINE: pptsnap.py -p 2
 this is my [[file:~/keyboards.pptx][custom keybinding]]
 ```
 
-- put cursor on `#+IMAGINE` or below
+- put cursor on `#+IMAGINE` or below and M-x org-imagine-view
 
-- M-x org-imagine-view
+  - when detecting a command without `%s-escape`, org-imagine will add `-l=link` and `-d=org-imagine-cache-dir` options 
+  so after parsing, the real command is `pptsnap.py -p 2 -l="[[file:~/keyboards.pptx]]" -d=./.org-imagine`
 
-- pptsnap.py is just a executable python script (command-line interface) in `./view/`, using `libreoffice` and `pdftoppm`(or `pyMupdf`) to generate the preview of the second page of `~/keyboards.pptx` in `org-imagine-cache-dir` with naming convention  `filename-lastmodified-hash.png`
+  - pptsnap.py is an executable python script (command-line interface) in `org-imagine-dir`, it uses `LibreOffice` and `pdftoppm`(or `pyMupdf`) to generate the preview of the second page of `~/keyboards.pptx` in `org-imagine-cache-dir` with naming convention  `filename-last_modified-hash.png`
 
-- org-imagine then inserts the image link below and call `org-redisplay-inline-images` to show image
+- after executing org-imagine-view:
 
-after:
 ```elisp
 #+IMAGINE: pptsnap.py -p 2
 this is my [[file:~/keyboards.pptx][custom keybinding]]
@@ -34,21 +38,54 @@ this is my [[file:~/keyboards.pptx][custom keybinding]]
 ```
 
 
-Replace pptsnap.py with other executable in `org-imagine-view-dir`. (e.g. pdfsnap.py for pdf file links, timemap.py for gtd/journal file links)
+## Use case: Random Cover image generator
 
-You can also write your own visualizer script in `org-imagine-view-dir`, make sure it is an executable
+Downloads and preview random images from picsum:
+```
+#+IMAGINE: wget -O %{%o.png} %f
+[[https://picsum.photos/1366/768/\?random]]
+#+ATTR_HTML: :width 800 :align center
+```
 
-Using `org-imagine-clear-cache`(require projectile) to clear unlinked image files (like garbage-collection)
+- put cursor on `#+IMAGINE` or below and M-x org-imagine-view, then
+
+```org
+#+IMAGINE: wget -O %{%o.png} %f
+[[https://picsum.photos/1366/768/\?random]]
+#+ATTR_HTML: :width 800 :align center
+[[file:./.org-imagine/N-T-7bbbd1174f.png]]
+```
+
+
+`%o`, `%{}` and `%f` is just a kind of special [%-escapes](https://orgmode.org/manual/Template-expansion.html#FOOT86) allow dynamic insertion/substitution of content
+
+- `%o` will be substituted by an image name in the form of  `filename-last_modified-hash`
+- `%{}` is an anchor to tell org-imagine that the content within it will be used as an image path which will be inserted, allowing user-specified image path, e.g. `#+IMAGINE: wget -O %{/tmp/cover.png} %f` 
+- `%f` will be substituted by the first org link below the `#+IMAGINE` comment line, currently support link formats:
+  - `[[file:path_of_file::page]]` extract `path_of_file`
+  - `[[pdf:file.pdf]]` extract `file.pdf`
+  - `[[id:xxxxx]]` extract the file path of org id `xxxxx`
+  - `[[http://url_of_image.jpg]]` extract `http://url_of_image.jpg`
+  - `[[https://url_of_image.png]]` extract `https://url_of_image.png`
+
+
+other templates:
+
+- `%l`: substituted by the content of the next line
+
 
 
 ## Customization 
+
+- `org-imagine-view-dir`: where user-defined visualiser locate, default is "/path/to/org-imagine/view/"
 
 ``` elisp
 (use-package org-imagine
   :load-path "~/.emacs.d/site-lisp/org-imagine/"
   :config
-  (setq org-imagine-view-dir "./view/"
-        org-imagine-cache-dir "./.org-imagine"
-        org-imagine-with-width 600)  ;; insert #+ATTR_ORG to set image width
+  (setq org-imagine-cache-dir "./.org-imagine")
   )
 ```
+
+
+Using `org-imagine-clear-cache`(require projectile) to clear unlinked image files (like garbage-collection)
