@@ -15,6 +15,7 @@
 
 
 (defvar org-imagine-view-dir
+  "folder for visualizers"
   (concat org-imagine-dir "view/"))
 
 
@@ -42,16 +43,6 @@ after execute org-image-view
           (delete-file imgpath))))))
 
 
-(defun org-imagine--get-cmd (imagine-line)
-  (let ((reg "^[ \t]*#\\+IMAGINE:[ \t]*"))
-    (replace-regexp-in-string reg "" imagine-line)))
-
-
-(defun org-imagine--get-line-at-point ()
-  "current line without trailing newline"
-  (replace-regexp-in-string "\n$" "" (thing-at-point 'line t)))
-
-
 ;;;###autoload
 (defun org-imagine-view ()
   "search `'#+IMAGINE:`' backward, parse arguments, 
@@ -59,31 +50,55 @@ after execute org-image-view
   (interactive)
   (unless (file-directory-p org-imagine-cache-dir)
     (make-directory org-imagine-cache-dir))
-  (save-restriction
+  (save-excursion
     (end-of-line)
-    (let* ((marker (move-marker (make-marker) (point)))
-           (regexp "^[ \t]*#\\+IMAGINE:"))
+    (let ((regexp "^[ \t]*#\\+IMAGINE:"))
       (when (re-search-backward regexp nil t)
-        (let* ((imagine-line (org-imagine--get-line-at-point))
-               (cmd (org-imagine--get-cmd imagine-line))
-               (cmd (org-imagine--expand-viewer cmd))
-               (cmd-content (org-imagine--fill-cmd-input cmd))
-               (cmd (car cmd-content))
-               (content (cadr cmd-content))
-               (cmd-type (caddr cmd-content))
-               (path (org-imagine--get-output-path content cmd))
-               (cmd-outpath (org-imagine--fill-cmd-output cmd path))
-               (final-cmd (car cmd-outpath))
-               (img-path (cadr cmd-outpath))
-               (cmd-out-path (shell-command-to-string final-cmd))
-               (img-path (if img-path img-path cmd-out-path)))
-          (if current-prefix-arg
-              (message final-cmd))
-          (org-imagine--insert-below img-path cmd-type)
-          )
-        (goto-char marker)
-        (move-marker marker nil) ; point nowhere for GC
-        t))))
+        (let*
+            ((marker (move-marker (make-marker) (point)))
+             (cmd-outpath (org-imagine--read-and-parse-cmd))
+             (final-cmd (car cmd-outpath))
+             (img-path (cadr cmd-outpath))
+             (nothing (org-imagine--insert-below "\n: imagining ..."))
+             (proc
+              (start-process-shell-command
+               "org-imagine-view"
+               nil
+               final-cmd)))
+
+          (set-process-filter
+           proc
+           (lambda (proc cmd-out-path)
+             (when (not img-path)
+               (org-imagine--insert-image marker cmd-out-path))))
+          (set-process-sentinel
+           proc
+           (lambda (proc event)
+             (when (and (equal event "finished\n") img-path)
+               (org-imagine--insert-image marker img-path))))
+          t)))))
+
+(defun org-imagine--insert-image (marker img-path)
+  (save-excursion
+    (goto-char marker)
+    (move-marker marker nil) ; point nowhere for GC
+    (org-imagine--insert-below (format "\n[[file:%s]]" img-path))
+    (org-redisplay-inline-images)))
+
+
+(defun org-imagine--read-and-parse-cmd ()
+  (let* ((imagine-line (org-imagine--get-line-at-point))
+         (cmd (org-imagine--get-cmd imagine-line))
+         (cmd (org-imagine--expand-viewer cmd))
+         (cmd-content (org-imagine--fill-cmd-input cmd))
+         (cmd (car cmd-content))
+         (content (cadr cmd-content))
+         (path (org-imagine--get-output-path content cmd))
+         (cmd-and-outpath (org-imagine--fill-cmd-output cmd path))
+         (final-cmd (car cmd-and-outpath)))
+    (if current-prefix-arg
+        (message final-cmd))
+    cmd-and-outpath))
 
 
 (defun org-imagine--expand-viewer (cmd)
@@ -99,22 +114,34 @@ then convert it to /full/path/to/pptsnap.py"
       cmd)))
 
 
-(defun org-imagine--insert-link-and-preview (filepath)
-  (end-of-line)
-  (insert (format "\n[[file:%s]]" filepath))
-  (org-redisplay-inline-images))
+(defun org-imagine--fill-cmd-input (cmd)
+  "template-expansion for %f, %l"
+  (let* ((template-content (org-imagine--get-input-content cmd))
+         (template (car template-content))
+         (content (cadr template-content)))
+    (if (equal template "") 
+        (list (concat cmd (format " -l \"%s\"" content)) content)
+      (list (replace-regexp-in-string template content cmd) content))))
 
 
-(defun org-imagine--insert-below (filepath cmd-type) 
-  (next-line)
-  (when (not (equal "noinput" cmd-type))
-    (next-line))
-  (while (org-imagine--on-attr-comment)
-    (next-line))
-  (when org-imagine-is-overwrite
-    (org-imagine--remove-current-link)
-    (previous-line))
-  (org-imagine--insert-link-and-preview filepath))
+(defun org-imagine--get-cmd (imagine-line)
+  (let ((reg "^[ \t]*#\\+IMAGINE:[ \t]*"))
+    (replace-regexp-in-string reg "" imagine-line)))
+
+
+(defun org-imagine--get-line-at-point ()
+  "current line without trailing newline"
+  (replace-regexp-in-string "\n$" "" (thing-at-point 'line t)))
+
+
+(defun org-imagine--insert-below (content) 
+  (save-excursion
+    (next-line)
+    (next-line)
+    (while (org-imagine--on-attr-comment)
+      (next-line))
+    (org-imagine--maybe-remove-current-link)
+    (insert content)))
 
 
 (defun org-imagine--on-attr-comment (&optional line)
@@ -123,13 +150,18 @@ then convert it to /full/path/to/pptsnap.py"
     (string-match-p regexp line)))
 
 
-(defun org-imagine--remove-current-link ()
-  (save-excursion
-    (beginning-of-line)
-    (let ((regexp "\\[\\[file")
-          (line (thing-at-point 'line t)))
-      (when (string-match-p regexp line)
-        (kill-whole-line)))))
+(defun org-imagine--maybe-remove-current-link ()
+  (beginning-of-line)
+  (let ((img-regexp "\\[\\[file")
+        (placeholder-regexp ": imagining")
+        (line (thing-at-point 'line t)))
+    (when (or
+           (string-match-p placeholder-regexp line)
+           (and org-imagine-is-overwrite
+                (string-match-p img-regexp line)))
+      (kill-whole-line))
+    (previous-line)
+    (end-of-line)))
 
 
 (defun org-imagine--get-link-below ()
@@ -145,24 +177,6 @@ then convert it to /full/path/to/pptsnap.py"
   (interactive)
   (when (org-in-regexp org-bracket-link-regexp 1)
     (org-link-unescape (org-match-string-no-properties 1))))
-
-
-(defun org-imagine--fill-cmd-input (cmd)
-  "template-expansion for %f, %l"
-  (let* ((template-content (org-imagine--get-input-content cmd))
-         (template (car template-content))
-         (content (cadr template-content))
-         target-path type)
-
-    (cond ((equal template "snap")
-           (setq cmd (concat cmd (format " -l \"%s\"" content)))
-           (setq type template))
-          ((equal template "noinput")
-           (setq type template))
-          (t
-           (setq cmd (replace-regexp-in-string template content cmd))
-           (setq type "normal")))
-    (list cmd content type)))
 
 
 (defun org-imagine--has-output-placeholder (cmd)
@@ -212,11 +226,11 @@ then convert it to /full/path/to/pptsnap.py"
       ((filename
         (if (file-exists-p path)
             (file-name-sans-extension (file-name-nondirectory path))
-          "a"))
+          "N"))
        (modified
         (if (file-exists-p path)
             (org-imagine--get-last-modifed path)
-          "b"))
+          "T"))
        (hash
         (if (file-exists-p path)
             (org-imagine--get-hash cmd 5)
@@ -244,13 +258,9 @@ e.g. %f will drive org-imagine to extrat file path in the next line"
       (list "%f" (org-imagine--extract-path-from-link
                   (org-imagine--get-link-below))))
      ((string-match-p "%l" cmd) (list "%l" next-line))
-     ((or (string-blank-p next-line)
-          (org-imagine--on-attr-comment next-line))
-      ;; a cmd without input org-object, don't add -l or do expansion
-      (list "noinput" ""))
      ;; snap command need -l
-     (t (list "snap" (org-imagine--extract-path-from-link
-                      (org-imagine--get-link-below)))))))
+     (t (list "" (org-imagine--extract-path-from-link
+                  (org-imagine--get-link-below)))))))
 
 
 (defun org-imagine-get-user-specified-target (imagine-line &optional default)
