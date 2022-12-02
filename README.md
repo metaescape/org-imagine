@@ -127,7 +127,7 @@ or
 ```
 
 
-- steak of org jounal
+- streak of org jounal
 ```org
 #+IMAGINE: timemap.py 
 this is my [[file:~/org/journal/j2021.org][2021 journal]] streak:
