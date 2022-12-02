@@ -7,7 +7,7 @@ Org-imagine is a visualization decorator for org-mode element, its purpose is to
 `cd ~/.emacs.d/site-lisp/; git clone git@github.com:metaescape/org-imagine.git`
 
 
-`cd org-imagine; git submodule update --init` if you want use predifined visulization scripts in `org-imagine/view/`
+`cd org-imagine; git submodule update --init` if you want to use predifined visulization scripts in `org-imagine/view/`
 
 
 then install it with `use-package` or your favorite emacs package manager:
@@ -46,7 +46,7 @@ Downloads and preview random images from picsum:
 
 - `%o` will be substituted by an image name in the form of  `filename-last_modified-hash`
 - `%{}` is an anchor to tell org-imagine that the content within it will be used as an image path which will be inserted later, allowing user-specified image path, e.g. `#+IMAGINE: wget -O %{/tmp/cover.png} %f` 
-- `%f` will be substituted by the first org link below the `#+IMAGINE` comment line, currently support link formats:
+- `%f` will be substituted by the first org link in the next line of `#+IMAGINE` comment line, currently support link formats:
   - `[[file:path_of_file::page]]` extract `path_of_file`
   - `[[pdf:file.pdf]]` extract `file.pdf`
   - `[[id:xxxxx]]` extract the file path of org id `xxxxx`
