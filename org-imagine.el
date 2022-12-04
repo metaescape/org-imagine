@@ -1,6 +1,6 @@
 ;;; org-imagine.el ---  an org element visualization decorator -*- lexical-binding:t -*-
 (require 'org-element)
-
+(require 'f)
 
 (defgroup org-imagine nil
   "Insert a image related to an org element."
