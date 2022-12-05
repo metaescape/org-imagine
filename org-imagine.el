@@ -14,9 +14,7 @@
   (file-name-directory (locate-library "org-imagine")))
 
 
-(defvar org-imagine-view-dir
-  "folder for visualizers"
-  (concat org-imagine-dir "view/"))
+(defvar org-imagine-view-dir (concat org-imagine-dir "view/"))
 
 
 (defvar org-imagine-cache-dir "./.org-imagine")
