@@ -102,8 +102,7 @@ Using `org-imagine-clear-cache`(require projectile) to clear unlinked image file
 - stable-diffusion webui api:
 
 ```org
-#+IMAGINE: sdtext2img.py -e 192.168.168.2:7861 -o %{/tmp/sd.png} -j %f
-
+#+IMAGINE: sdtext2img.py -e 192.168.168.2:7861 -o %{%o.png} -j %f
 [[file:~/.emacs.d/site-lisp/org-imagine/view/stable_diffusion_demo.json]]
 ```
 
