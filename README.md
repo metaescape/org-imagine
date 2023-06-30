@@ -95,7 +95,7 @@ this is my [[file:~/keyboards.pptx][custom keybinding]]
     )
 ```
 
-Using `org-imagine-clear-cache`(require projectile) to clear unlinked image files (like garbage-collection)
+Using `org-imagine-clear-cache` to clear unlinked image files (like garbage-collection)
 
 ## other usage scenarios
 
