@@ -162,4 +162,4 @@ Yasnippets for quick decoration:
 
 中文的说明和讨论： [org-imagine： 对 org 对象进行可视化的插件](https://emacs-china.org/t/org-imagine-org/22134)
 
-中文 Blog： [org imagine: org mode 装饰器](https://hugchange.life/posts/org_imagine.html)
+中文 Blog： [org imagine: org mode 装饰器](https://www.hugchange.life/posts/org_imagine.html)
