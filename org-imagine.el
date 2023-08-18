@@ -134,10 +134,10 @@ then convert it to /full/path/to/pptsnap.py"
 
 (defun org-imagine--insert-below (content) 
   (save-excursion
-    (next-line)
-    (next-line)
+    (next-logical-line)
+    (next-logical-line)
     (while (org-imagine--on-attr-comment)
-      (next-line))
+      (next-logical-line))
     (org-imagine--maybe-remove-current-link)
     (insert content)))
 
@@ -197,9 +197,10 @@ then convert it to /full/path/to/pptsnap.py"
       (list cmd-output output-path))))
 
 
-(defun org-imagine--on-attr-comment-or-blank ()
-  (or (string-blank-p (org-imagine--get-line-at-point))
-      (org-imagine--on-attr-comment)))
+(defun org-imagine--on-attr-comment-or-blank (&optional line)
+  (let ((target-line (if line line (org-imagine--get-line-at-point))))
+    (or (string-blank-p target-line)
+        (org-imagine--on-attr-comment target-line))))
 
 
 (defun path-no-ext? (path)
@@ -243,20 +244,20 @@ then convert it to /full/path/to/pptsnap.py"
 (defun org-imagine--get-line-below ()
   (save-excursion
     (beginning-of-line)
-    (next-line)
+    (next-logical-line)
     (org-imagine--get-line-at-point)))
 
 
 (defun org-imagine--get-input-content (cmd)
   "extract org element based on template type, 
 e.g. %f will drive org-imagine to extract file path in the next line"
-  (let ((next-line (org-imagine--get-line-below)))
+  (let ((next-logical-line (org-imagine--get-line-below)))
     (cond
      ((string-match-p "%f" cmd)
       (list "%f" (org-imagine--extract-path-from-link
                   (org-imagine--get-link-below))))
-     ((string-match-p "%l" cmd) (list "%l" next-line))
-     ((string-blank-p next-line) (list "" ""))
+     ((string-match-p "%l" cmd) (list "%l" next-logical-line))
+     ((org-imagine--on-attr-comment-or-blank next-logical-line) (list "" ""))
      ;; snap command need -l
      (t (list "-l" (org-imagine--extract-path-from-link
                     (org-imagine--get-link-below)))))))

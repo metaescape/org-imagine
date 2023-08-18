@@ -144,7 +144,7 @@ this is my [[file:~/org/journal/j2021.org][2021 journal]] streak:
 
 ## Misc
 
-Yasnippets for quick decorate:
+Yasnippets for quick decoration:
 
 ```
 #+IMAGINE: ${0:pdfsnap.py} -s 300
@@ -161,3 +161,5 @@ Yasnippets for quick decorate:
 ```
 
 中文的说明和讨论： [org-imagine： 对 org 对象进行可视化的插件](https://emacs-china.org/t/org-imagine-org/22134)
+
+中文 Blog： [org imagine: org mode 装饰器](https://hugchange.life/posts/org_imagine.html)
