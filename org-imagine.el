@@ -143,7 +143,7 @@ then convert it to /full/path/to/pptsnap.py"
 
 
 (defun org-imagine--on-attr-comment (&optional line)
-  (let ((regexp "#\\+ATTR_")
+  (let ((regexp "#\\+") ;; #+ATTR_ #+CAPTION #+NAME
         (line (if line line (thing-at-point 'line t))))
     (string-match-p regexp line)))
 
