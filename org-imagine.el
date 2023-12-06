@@ -40,41 +40,68 @@ after execute org-image-view
           (message (format "delete %s" imgpath))
           (delete-file imgpath))))))
 
+
 ;;;###autoload
 (defun org-imagine-view ()
   "search `'#+IMAGINE:`' backward, parse arguments, 
-  generate image and insert image link in the next line"
+  generate image/src-block and insert image link or src block below"
   (interactive)
   (unless (file-directory-p org-imagine-cache-dir)
     (make-directory org-imagine-cache-dir))
-  (save-excursion
-    (end-of-line)
-    (let ((regexp "^[ \t]*#\\+IMAGINE:"))
-      (when (re-search-backward regexp nil t)
-        (let*
-            ((marker (move-marker (make-marker) (point)))
-             (cmd-outpath (org-imagine--read-and-parse-cmd))
-             (final-cmd (car cmd-outpath))
-             (img-path (cadr cmd-outpath))
-             (nothing (org-imagine--insert-below "\n: imagining ..."))
-             (proc
-              (start-process-shell-command
-               "org-imagine-view"
-               nil
-               final-cmd)))
+  (end-of-line)
+  (let ((regexp "^[ \t]*#\\+IMAGINE:"))
+    (when (re-search-backward regexp nil t)
+      (if (not-quote-link-followed-imagine)
+          (org-imagine--view-image)
+        (org-imagine--view-src-block)))))
 
-          (message final-cmd)
-          (set-process-filter
-           proc
-           (lambda (proc cmd-out-path)
-             (when (not img-path)
-               (org-imagine--insert-image marker cmd-out-path))))
-          (set-process-sentinel
-           proc
-           (lambda (proc event)
-             (when (and (equal event "finished\n") img-path)
-               (org-imagine--insert-image marker img-path))))
-          t)))))
+(defun not-quote-link-followed-imagine ()
+  "Check if the current line matches specific format after '#+IMAGINE:'."
+  (save-excursion
+    (let ((current-line (thing-at-point 'line t)))
+      (not (string-match "^[ \t]*#\\+IMAGINE:[ \t]+\"" current-line)))))
+
+(defun org-imagine--view-image ()
+  (save-excursion
+    (let*
+        ((marker (move-marker (make-marker) (point)))
+         (cmd-outpath (org-imagine--read-and-parse-cmd))
+         (final-cmd (car cmd-outpath))
+         (img-path (cadr cmd-outpath))
+         (nothing (org-imagine--insert-below "\n: imagining ..."))
+         (proc
+          (start-process-shell-command
+           "org-imagine-view"
+           nil
+           final-cmd)))
+
+      (message final-cmd)
+      (set-process-filter
+       proc
+       (lambda (proc cmd-out-path)
+         (when (not img-path)
+           (org-imagine--insert-image marker cmd-out-path))))
+      (set-process-sentinel
+       proc
+       (lambda (proc event)
+         (when (and (equal event "finished\n") img-path)
+           (org-imagine--insert-image marker img-path))))
+      t)))
+
+
+(defun org-imagine--view-src-block ()
+  "Open a link, extract content if it's a Python file, then insert it into a Python source block."
+  (let* ((src-out (extract-block-from-target-file)))
+    (insert-src-out-into-python-src-block src-out)))
+
+
+(defun insert-src-out-into-python-src-block (src-out)
+  "Insert SRC-OUT into a new Python source block below the current line."
+  (let ((start (point)))
+    (end-of-line)
+    (insert (concat "\n#+BEGIN_SRC python\n" src-out "\n#+END_SRC\n"))
+    (goto-char start)
+    (forward-line)))
 
 (defun org-imagine--insert-image (marker img-path)
   (save-excursion
@@ -298,6 +325,91 @@ also convert org-id to file path"
    "::.*$"
    "" 
    (concat "" (substring link (length prefix)))))
+
+
+(defun org-edit-special-advice-for-org-imagine (original-function &optional arg)
+  (let ((element (org-element-at-point)))
+    (pcase (org-element-type element)
+      (`keyword
+       (when (member (org-element-property :key element)
+		             '("IMAGINE"))
+         (let ((value (org-element-property :value element)))
+           (unless (org-string-nw-p value) (user-error "No file to edit"))
+           (let* ((file (and (string-match "\\`\"\\(.*?\\)\"\\|\\S-+" value)
+			                 (or (match-string 1 value)
+			                     (match-string 0 value))))
+                  )
+	         (when (org-file-url-p file)
+	           (user-error "Files located with a URL cannot be edited"))
+	         (org-link-open-from-string
+	          (format "[[%s]]" file)))))
+       (funcall original-function arg)))))
+
+(advice-add 'org-edit-special :around #'org-edit-special-advice-for-org-imagine)
+
+
+(defun extract-python-block ()
+  "Extract the content of the Python class or function at the current point."
+  (interactive)
+  (save-excursion
+    (beginning-of-line)
+    (cond ((looking-at "^ *class ") (extract-python-class))
+          ((looking-at "^ *def ") (extract-python-function))
+          (t "Error: Not on a class or function definition"))))
+
+(defun extract-python-class ()
+  "Extract the content of the Python class at the current point."
+  (let ((start (point)))
+    (forward-line 1)
+    (while (and (not (eobp)) 
+                (or (looking-at "^[ \t]+") (looking-at "^$")))
+      (forward-line 1))
+    (buffer-substring-no-properties start (point))))
+
+(defun extract-python-function ()
+  "Extract the content of the Python function at the current point."
+  (let ((start (point))
+        (initial-indentation (current-indentation)))
+    (forward-line 1)
+    (while (and (not (eobp))
+                (or (> (current-indentation) initial-indentation)
+                    (looking-at "^$")))
+      (forward-line 1))
+    (buffer-substring-no-properties start (point))))
+
+(defun extract-block-from-target-file ()
+  "Extract the class or function content from a src file at the point."
+  (let*
+      ((element (org-element-at-point))
+       (value (org-element-property :value element))
+       (original-window (selected-window))
+       (extracted-content ""))
+    (unless (org-string-nw-p value) (user-error "No file to edit"))
+    (let ((file (and (string-match "\\`\"\\(.*?\\)\"\\|\\S-+" value)
+			         (or (match-string 1 value)
+			             (match-string 0 value)))))
+	  (when (org-file-url-p file)
+	    (user-error "Files located with a URL cannot be edited"))
+      (with-temp-buffer
+	    (org-link-open-from-string (format "[[%s]]" file))
+        (when (eq major-mode 'python-mode) ;; we are in new opened buffer
+          (setq extracted-content (extract-python-block))
+          (let ((temp-buffer (generate-new-buffer "*imagine-temp-src-block*")))
+            (with-current-buffer temp-buffer
+              (insert extracted-content)
+              (python-mode)
+              (goto-char (point-max))
+              (delete-blank-lines)
+              (setq extracted-content (buffer-string)))
+            (kill-buffer temp-buffer))
+          (delete-window)))
+      (select-window original-window)
+      extracted-content)))
+
+(defun test-extract-block-from-target-file ()
+  " test function "
+  (interactive)
+  (message  (extract-block-from-target-file)))
 
 
 (provide 'org-imagine)
