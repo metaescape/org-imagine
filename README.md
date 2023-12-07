@@ -137,7 +137,7 @@ class Lexer:
 ​        support org link abbreviation:
 
 ```org
-#+LINK: lexer ~/codes/parsing/lexer.py::class Lexer::%s
+#+LINK: lexer ~/codes/parsing/lexer.py::%s
 ```
 
 ​         then you can represent the `Lexer` class with the following simplified link
