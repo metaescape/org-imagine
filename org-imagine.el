@@ -346,7 +346,7 @@ also convert org-id to file path"
                     )
 	           (when (org-file-url-p file)
 	             (user-error "Files located with a URL cannot be edited"))
-	           (org-link-open-from-string (format "[[%s]]" file))))
+	           (org-link-open-from-string-with-abbrev-list (format "[[%s]]" file))))
          (funcall original-function arg)))
       (_ (funcall original-function arg)))))
 
@@ -395,26 +395,35 @@ also convert org-id to file path"
 			             (match-string 0 value)))))
 	  (when (org-file-url-p file)
 	    (user-error "Files located with a URL cannot be edited"))
-      (with-temp-buffer
-	    (org-link-open-from-string (format "[[%s]]" file))
-        (when (eq major-mode 'python-mode) ;; we are in new opened buffer
-          (setq extracted-content (extract-python-block))
-          (let ((temp-buffer (generate-new-buffer "*imagine-temp-src-block*")))
-            (with-current-buffer temp-buffer
-              (insert extracted-content)
-              (python-mode)
-              (goto-char (point-max))
-              (delete-blank-lines)
-              (setq extracted-content (buffer-string)))
-            (kill-buffer temp-buffer))
-          (delete-window)))
+	  (org-link-open-from-string-with-abbrev-list (format "[[%s]]" file))
+      (when (eq major-mode 'python-mode) ;; we are in new opened buffer
+        (setq extracted-content (extract-python-block))
+        (let ((temp-buffer (generate-new-buffer "*imagine-temp-src-block*")))
+          (with-current-buffer temp-buffer
+            (insert extracted-content)
+            (python-mode)
+            (goto-char (point-max))
+            (delete-blank-lines)
+            (setq extracted-content (buffer-string)))
+          (kill-buffer temp-buffer))
+        (delete-window))
       (select-window original-window)
       extracted-content)))
 
-(defun test-extract-block-from-target-file ()
-  " test function "
-  (interactive)
-  (message  (extract-block-from-target-file)))
+(defun org-link-open-from-string-with-abbrev-list (s &optional arg)
+  "Open a link in the string S, as if it was in Org mode.
+Optional argument is passed to `org-open-file' when S is
+a \"file\" link. "
+  (let ((original-abbrev-alist org-link-abbrev-alist-local))
+    (pcase (with-temp-buffer
+	         (let ((org-inhibit-startup nil))
+	           (insert s)
+	           (org-mode)
+	           (goto-char (point-min))
+               (setq-local org-link-abbrev-alist-local original-abbrev-alist)
+	           (org-element-link-parser)))
+      (`nil (user-error "No valid link in %S" s))
+      (link (org-link-open link arg)))))
 
 
 (provide 'org-imagine)
