@@ -96,12 +96,17 @@ after execute org-image-view
 
 
 (defun insert-src-out-into-python-src-block (src-out)
-  "Insert SRC-OUT into a new Python source block below the current line."
-  (let ((start (point)))
+  "Insert SRC-OUT into a new Python source block below the current line with alignment."
+  (let ((start (point))
+        (indentation (current-indentation)))
     (end-of-line)
-    (insert (concat "\n#+BEGIN_SRC python\n" src-out "\n#+END_SRC\n"))
+    ;; 插入源代码块，带有适当的缩进
+    (insert (concat "\n" (make-string indentation ?\s) "#+BEGIN_SRC python\n"
+                    (replace-regexp-in-string "^" (make-string indentation ?\s) src-out)
+                    "\n" (make-string indentation ?\s) "#+END_SRC\n"))
     (goto-char start)
     (forward-line)))
+
 
 (defun org-imagine--insert-image (marker img-path)
   (save-excursion
@@ -331,19 +336,19 @@ also convert org-id to file path"
   (let ((element (org-element-at-point)))
     (pcase (org-element-type element)
       (`keyword
-       (when (member (org-element-property :key element)
-		             '("IMAGINE"))
-         (let ((value (org-element-property :value element)))
-           (unless (org-string-nw-p value) (user-error "No file to edit"))
-           (let* ((file (and (string-match "\\`\"\\(.*?\\)\"\\|\\S-+" value)
-			                 (or (match-string 1 value)
-			                     (match-string 0 value))))
-                  )
-	         (when (org-file-url-p file)
-	           (user-error "Files located with a URL cannot be edited"))
-	         (org-link-open-from-string
-	          (format "[[%s]]" file)))))
-       (funcall original-function arg)))))
+       (if (member (org-element-property :key element)
+		           '("IMAGINE"))
+           (let ((value (org-element-property :value element)))
+             (unless (org-string-nw-p value) (user-error "No file to edit"))
+             (let* ((file (and (string-match "\\`\"\\(.*?\\)\"\\|\\S-+" value)
+			                   (or (match-string 1 value)
+			                       (match-string 0 value))))
+                    )
+	           (when (org-file-url-p file)
+	             (user-error "Files located with a URL cannot be edited"))
+	           (org-link-open-from-string (format "[[%s]]" file))))
+         (funcall original-function arg)))
+      (_ (funcall original-function arg)))))
 
 (advice-add 'org-edit-special :around #'org-edit-special-advice-for-org-imagine)
 
