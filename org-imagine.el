@@ -306,12 +306,15 @@ e.g. %f will drive org-imagine to extract file path in the next line"
 
 
 (defun org-imagine--extract-path-from-link (link)
-  "get pure path from org link, e.g [[file:~/abc.org::12]] return ~/abc.org
-also convert org-id to file path"
+  "Get pure path from org link, e.g., [[file:~/abc.org::12]] return ~/abc.org.
+Also convert org-id to file path. Error out if the link is invalid or file does not exist."
   (let ((path 
          (cond ((string-prefix-p "id:" link)
-                (org-id-find-id-file
-                 (concat "" (substring link (length "id:")))))
+                (let ((id-file (org-id-find-id-file
+                                (substring link (length "id:")))))
+                  (unless id-file
+                    (error "Invalid link: ID not found"))
+                  id-file))
                ((string-prefix-p "pdf:" link)
                 (org-imagine--path-trim-tail "pdf:" link))
                ((string-prefix-p "file:" link)
@@ -319,9 +322,11 @@ also convert org-id to file path"
                ((string-prefix-p "http" link)
                 link)
                (t (org-imagine--path-trim-tail "" link)))))
-    (when (or (string-prefix-p "http" link)
-              (file-exists-p path))
-      path)))
+
+    (unless (or (string-prefix-p "http" path)
+                (and (stringp path) (file-exists-p path)))
+      (error "Link path does not exist: %s" path))
+    path))
 
 
 (defun org-imagine--path-trim-tail (prefix link)
