@@ -1,6 +1,6 @@
 # org-imagine
 
-Org-imagine is a visualization decorator for org-mode element, its purpose is to make inserting images in emacs org-mode easier, programmatic, and more fun
+Org-imagine is a visualization decorator for org-mode element, its purpose is to make inserting images/src-blocks in emacs org-mode easier, programmatic, and more fun
 
 <img src="./org-imagine2.gif" alt="Cover" width="80%"/>
 
@@ -81,6 +81,75 @@ this is my [[file:~/keyboards.pptx][custom keybinding]]
 [[file:./.org-imagine/keyboards-20220903232619-25822.png]]
 ```
 
+## Use case: src code insertion
+
+​     
+
+```bash
+#+IMAGINE: "~/codes/parsing/lexer.py::class Lexer"
+```
+
+- after executing org-imagine-view:
+
+  the source code of class Lexer in ~/codes/parsing/lexer.py will be inserted below:
+
+```python
+#+BEGIN_SRC python
+class Lexer:
+    '''
+    A Abstract Lexer class
+    '''
+    # string with < > is the token and the string without < > is the token type
+    type_map = {"<NA>": "NA", "<EOF>": "EOF"}
+
+    def __init__(self, input: str):
+        self.input = input
+
+        # set all key, value in type_map to class attribute
+        for token, token_type in self.type_map.items():
+            setattr(self, token_type, token)
+            setattr(self, f"{token_type}_TYPE", token_type)
+
+        self.p = 0  # Index into input of current character
+        self.c = self.input[self.p] if self.input else self.EOF  # Prime lookahead
+
+    def consume(self):
+        """Move one character; detect 'end of file'."""
+        self.p += 1
+        if self.p >= len(self.input):
+            self.c = self.EOF
+        else:
+            self.c = self.input[self.p]
+
+    def match(self, x):
+        """Ensure x is next character on the input stream."""
+        if self.c == x:
+            self.consume()
+        else:
+            raise ValueError(f"Expecting {x}; found {self.c}")
+
+    def get_type(self, token_type):
+        """Abstract method to get the token name."""
+        raise NotImplementedError
+#+END_SRC
+```
+
+​        support org link abbreviation:
+
+```org
+#+LINK: lexer ~/codes/parsing/lexer.py::class Lexer::%s
+```
+
+​         then you can represent the `Lexer` class with the following simplified link
+
+     ```org
+     #+IMAGINE: "lexer:class Lexer"
+     ```
+
+​        use `C-c '` to jump to the target link. 
+
+​        It is currently supporting only Python and Emacs Lisp  source code fetching
+
 ## Customization
 
 - `org-imagine-view-dir`: where user-defined visualiser locate, default is "/path/to/org-imagine/view/"
@@ -142,7 +211,8 @@ this is my [[file:~/org/journal/j2021.org][2021 journal]] streak:
 [[file:./.org-imagine/j2021-20220804002339-051d8.png]]
 ```
 
-## Misc
+
+# Misc
 
 Yasnippets for quick decoration:
 
@@ -163,3 +233,4 @@ Yasnippets for quick decoration:
 中文的说明和讨论： [org-imagine： 对 org 对象进行可视化的插件](https://emacs-china.org/t/org-imagine-org/22134)
 
 中文 Blog： [org imagine: 在 org-mode 中想象](https://www.hugchange.life/posts/org_imagine.html)
+    
