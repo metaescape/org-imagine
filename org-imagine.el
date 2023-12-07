@@ -40,7 +40,6 @@ after execute org-image-view
           (message (format "delete %s" imgpath))
           (delete-file imgpath))))))
 
-
 ;;;###autoload
 (defun org-imagine-view ()
   "search `'#+IMAGINE:`' backward, parse arguments, 
@@ -88,25 +87,20 @@ after execute org-image-view
            (org-imagine--insert-image marker img-path))))
       t)))
 
-
 (defun org-imagine--view-src-block ()
   "Open a link, extract content if it's a Python file, then insert it into a Python source block."
   (let* ((src-out (extract-block-from-target-file)))
     (insert-src-out-into-python-src-block src-out)))
-
 
 (defun insert-src-out-into-python-src-block (src-out)
   "Insert SRC-OUT into a new Python source block below the current line with alignment."
   (let ((start (point))
         (indentation (current-indentation)))
     (end-of-line)
-    ;; 插入源代码块，带有适当的缩进
-    (insert (concat "\n" (make-string indentation ?\s) "#+BEGIN_SRC python\n"
-                    (replace-regexp-in-string "^" (make-string indentation ?\s) src-out)
-                    "\n" (make-string indentation ?\s) "#+END_SRC\n"))
+    ;; insert code with proper indentation
+    (insert (replace-regexp-in-string "^" (make-string indentation ?\s) src-out))
     (goto-char start)
     (forward-line)))
-
 
 (defun org-imagine--insert-image (marker img-path)
   (save-excursion
@@ -114,7 +108,6 @@ after execute org-image-view
     (move-marker marker nil) ; point nowhere for GC
     (org-imagine--insert-below (format "\n[[file:%s]]" img-path))
     (org-redisplay-inline-images)))
-
 
 (defun org-imagine--read-and-parse-cmd ()
   (let* ((imagine-line (org-imagine--get-line-at-point))
@@ -130,7 +123,6 @@ after execute org-image-view
         (message final-cmd))
     cmd-and-outpath))
 
-
 (defun org-imagine--expand-viewer (cmd)
   "when viewer is in `org-imagine-view-dir` e.g. pptsnap.py 
 then convert it to /full/path/to/pptsnap.py"
@@ -143,7 +135,6 @@ then convert it to /full/path/to/pptsnap.py"
         (replace-regexp-in-string (concat "^" bin) viewer cmd)
       cmd)))
 
-
 (defun org-imagine--fill-cmd-input (cmd)
   "template-expansion for %f, %l"
   (let* ((template-content (org-imagine--get-input-content cmd))
@@ -153,16 +144,13 @@ then convert it to /full/path/to/pptsnap.py"
         (list (concat cmd (format " -l \"%s\"" content)) content)
       (list (replace-regexp-in-string template content cmd) content))))
 
-
 (defun org-imagine--get-cmd (imagine-line)
   (let ((reg "^[ \t]*#\\+IMAGINE:[ \t]*"))
     (replace-regexp-in-string reg "" imagine-line)))
 
-
 (defun org-imagine--get-line-at-point ()
   "current line without trailing newline"
   (replace-regexp-in-string "\n$" "" (thing-at-point 'line t)))
-
 
 (defun org-imagine--insert-below (content) 
   (save-excursion
@@ -173,12 +161,10 @@ then convert it to /full/path/to/pptsnap.py"
     (org-imagine--maybe-remove-current-link)
     (insert content)))
 
-
 (defun org-imagine--on-attr-comment (&optional line)
   (let ((regexp "#\\+") ;; #+ATTR_ #+CAPTION #+NAME
         (line (if line line (thing-at-point 'line t))))
     (string-match-p regexp line)))
-
 
 (defun org-imagine--maybe-remove-current-link ()
   (beginning-of-line)
@@ -193,7 +179,6 @@ then convert it to /full/path/to/pptsnap.py"
     (previous-line)
     (end-of-line)))
 
-
 (defun org-imagine--get-link-below ()
   (save-excursion
     (beginning-of-line)
@@ -201,17 +186,14 @@ then convert it to /full/path/to/pptsnap.py"
       (when (re-search-forward regexp nil t)
         (org-imagine-extract-org-link)))))
 
-
 (defun org-imagine-extract-org-link ()
   "Extract the link location at point."
   (interactive)
   (when (org-in-regexp org-bracket-link-regexp 1)
     (org-link-unescape (org-match-string-no-properties 1))))
 
-
 (defun org-imagine--has-output-placeholder (cmd)
   (or (string-match-p "%o" cmd) (string-match-p "%{.*}" cmd)))
-
 
 (defun org-imagine--fill-cmd-output (cmd target-path)
   "template-expansion for %o and %{}"
@@ -228,17 +210,14 @@ then convert it to /full/path/to/pptsnap.py"
           (setq output-path (concat output-path ".png"))))
       (list cmd-output output-path))))
 
-
 (defun org-imagine--on-attr-comment-or-blank (&optional line)
   (let ((target-line (if line line (org-imagine--get-line-at-point))))
     (or (string-blank-p target-line)
         (org-imagine--on-attr-comment target-line))))
 
-
 (defun path-no-ext? (path)
   "check if `path` has no extension"
   (equal (f-no-ext path) path))
-
 
 (defun org-imagine--get-last-modifed (file)
   "Returns the last modified date of a FILE."
@@ -246,10 +225,8 @@ then convert it to /full/path/to/pptsnap.py"
   (format-time-string "%Y%m%d%H%M%S"
                       (nth 5 (file-attributes file))))
 
-
 (defun org-imagine--get-hash (string n)
   (substring (secure-hash 'sha256 string) 0 n))
-
 
 (defun org-imagine--get-output-path (path cmd)
   "generate output image name without extension"
@@ -272,13 +249,11 @@ then convert it to /full/path/to/pptsnap.py"
             modified
             hash)))
 
-
 (defun org-imagine--get-line-below ()
   (save-excursion
     (beginning-of-line)
     (next-logical-line)
     (org-imagine--get-line-at-point)))
-
 
 (defun org-imagine--get-input-content (cmd)
   "extract org element based on template type, 
@@ -294,7 +269,6 @@ e.g. %f will drive org-imagine to extract file path in the next line"
      (t (list "-l" (org-imagine--extract-path-from-link
                     (org-imagine--get-link-below)))))))
 
-
 (defun org-imagine-get-user-specified-target (imagine-line &optional default)
   "extract content in  %{ }"
   (when (string-match-p "%{.*}" imagine-line)
@@ -303,7 +277,6 @@ e.g. %f will drive org-imagine to extract file path in the next line"
       (if (and (equal out "") default)
           default
         out))))
-
 
 (defun org-imagine--extract-path-from-link (link)
   "Get pure path from org link, e.g., [[file:~/abc.org::12]] return ~/abc.org.
@@ -328,14 +301,12 @@ Also convert org-id to file path. Error out if the link is invalid or file does 
       (error "Link path does not exist: %s" path))
     path))
 
-
 (defun org-imagine--path-trim-tail (prefix link)
   "retain substring before `::`"
   (replace-regexp-in-string
    "::.*$"
    "" 
    (concat "" (substring link (length prefix)))))
-
 
 (defun org-edit-special-advice-for-org-imagine (original-function &optional arg)
   (let ((element (org-element-at-point)))
@@ -357,35 +328,71 @@ Also convert org-id to file path. Error out if the link is invalid or file does 
 
 (advice-add 'org-edit-special :around #'org-edit-special-advice-for-org-imagine)
 
-
 (defun extract-python-block ()
-  "Extract the content of the Python class or function at the current point."
+  "Extract the content of the Python block at the current point based on indentation."
   (interactive)
   (save-excursion
-    (beginning-of-line)
-    (cond ((looking-at "^ *class ") (extract-python-class))
-          ((looking-at "^ *def ") (extract-python-function))
-          (t "Error: Not on a class or function definition"))))
+    (let ((start (point))
+          (initial-indentation (current-indentation)))
+      (forward-line 1)
+      ;; 继续前进直到找到缩进级别小于或等于当前行的行
+      (while (and (not (eobp))
+                  (or (and (> (current-indentation) 0) 
+                           (> (current-indentation) initial-indentation))
+                      (looking-at "^$")))
+        (forward-line 1))
+      ;; 提取并返回块的内容
+      (buffer-substring-no-properties start (point)))))
 
-(defun extract-python-class ()
-  "Extract the content of the Python class at the current point."
-  (let ((start (point)))
-    (forward-line 1)
-    (while (and (not (eobp)) 
-                (or (looking-at "^[ \t]+") (looking-at "^$")))
-      (forward-line 1))
-    (buffer-substring-no-properties start (point))))
+(defun extract-elisp-s-expression ()
+  "Extract the smallest s-expression at the current point."
+  (save-excursion
+    (condition-case nil
+        (let (start end)
+          ;; Check if the cursor is on a parenthesis
+          (if (or (looking-at "(") (looking-back ")" 1))
+              (setq start (point))  ; If on a parenthesis, start from here
+            (backward-up-list)      ; Otherwise, move to the start of the current s-expression
+            (setq start (point)))
+          (forward-sexp)           ; Move to the end of the current s-expression
+          (setq end (point))
+          (buffer-substring-no-properties start end))  ; Extract the s-expression as a string
+      (error nil))))  ; Return nil if no valid s-expression is found
 
-(defun extract-python-function ()
-  "Extract the content of the Python function at the current point."
-  (let ((start (point))
-        (initial-indentation (current-indentation)))
-    (forward-line 1)
-    (while (and (not (eobp))
-                (or (> (current-indentation) initial-indentation)
-                    (looking-at "^$")))
-      (forward-line 1))
-    (buffer-substring-no-properties start (point))))
+(defvar org-imagine--mode-extract-function-map
+  '((python-mode . extract-python-block)
+    (emacs-lisp-mode . extract-elisp-s-expression)))
+
+(defun extract-block-for-mode ()
+  "extract code base one major-mode。"
+  (let ((extract-func (cdr (assoc major-mode org-imagine--mode-extract-function-map))))
+    (when extract-func
+      (funcall extract-func))))
+
+(defun extract-block-content-at-point ()
+  "Extract the content at point and wrap it in an Org source block."
+  (let ((extracted-content (extract-block-for-mode))
+        (original-mode (replace-regexp-in-string
+                        "-mode\\'"
+                        ""
+                        (symbol-name major-mode))))  ; Capture the original mode before creating a new buffer
+    (when extracted-content
+      (let ((temp-buffer (generate-new-buffer "*org-imagine-temp*")))
+        (with-current-buffer temp-buffer
+          (insert extracted-content)
+          ;; Use the captured mode for setting up the source block
+          (goto-char (point-max))
+          (delete-blank-lines)
+          ;; Ensure no trailing empty lines
+          (goto-char (point-max))
+          (setq extracted-content
+                (concat
+                 "\n#+BEGIN_SRC " original-mode "\n"
+                 (buffer-string)
+                 "#+END_SRC\n")))
+        (kill-buffer temp-buffer))
+      extracted-content)))
+
 
 (defun extract-block-from-target-file ()
   "Extract the class or function content from a src file at the point."
@@ -401,17 +408,10 @@ Also convert org-id to file path. Error out if the link is invalid or file does 
 	  (when (org-file-url-p file)
 	    (user-error "Files located with a URL cannot be edited"))
 	  (org-link-open-from-string-with-abbrev-list (format "[[%s]]" file))
-      (when (eq major-mode 'python-mode) ;; we are in new opened buffer
-        (setq extracted-content (extract-python-block))
-        (let ((temp-buffer (generate-new-buffer "*imagine-temp-src-block*")))
-          (with-current-buffer temp-buffer
-            (insert extracted-content)
-            (python-mode)
-            (goto-char (point-max))
-            (delete-blank-lines)
-            (setq extracted-content (buffer-string)))
-          (kill-buffer temp-buffer))
-        (delete-window))
+
+      (setq extracted-content (extract-block-content-at-point))
+      (delete-window)
+
       (select-window original-window)
       extracted-content)))
 
@@ -429,6 +429,5 @@ a \"file\" link. "
 	           (org-element-link-parser)))
       (`nil (user-error "No valid link in %S" s))
       (link (org-link-open link arg)))))
-
 
 (provide 'org-imagine)
