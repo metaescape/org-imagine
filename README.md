@@ -4,7 +4,7 @@ Org-imagine is a visualization decorator for org-mode element, its purpose is to
 
 <img src="./org-imagine2.gif" alt="Cover" width="80%"/>
 
-## Install
+## Installation
 
 `cd ~/.emacs.d/site-lisp/; git clone git@github.com:metaescape/org-imagine.git`
 
@@ -19,7 +19,7 @@ then install it with `use-package` or your favorite emacs package manager:
 
 # Usage
 
-Here are two examples for explaining how to use org-imagine.
+Here are few examples for explaining how to use org-imagine.
 
 ## Use case: Random Cover image generator
 
@@ -146,7 +146,7 @@ class Lexer:
      #+IMAGINE: "lexer:class Lexer"
      ```
 
-​        use `C-c '` to jump to the target link. 
+​        When cursor is on the IMAGINE line, use `C-c '` to jump to the target link. 
 
 ​        It is currently supporting only Python and Emacs Lisp  source code fetching
 
@@ -233,4 +233,5 @@ Yasnippets for quick decoration:
 中文的说明和讨论： [org-imagine： 对 org 对象进行可视化的插件](https://emacs-china.org/t/org-imagine-org/22134)
 
 中文 Blog： [org imagine: 在 org-mode 中想象](https://www.hugchange.life/posts/org_imagine.html)
+    
     
