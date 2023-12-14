@@ -328,23 +328,43 @@ Also convert org-id to file path. Error out if the link is invalid or file does 
 
 (advice-add 'org-edit-special :around #'org-edit-special-advice-for-org-imagine)
 
-(defun extract-python-block ()
-  "Extract the content of the Python block at the current point based on indentation."
-  (interactive)
+(defun extract-python-block (args)
+  "Extract the content of the Python block at the current point based on indentation.
+If :only-content is t, remove docstrings from the block."
   (save-excursion
-    (let ((start (point))
-          (initial-indentation (current-indentation)))
+    (let ((initial-indentation (current-indentation))
+          (origin (point))
+          start)
+      ;; Move up to find the start of the block
+      (forward-line -1)
+      (while (and (not (bobp))  ; Check if it's the beginning of the buffer
+                  (not (looking-at "^\\s-*$"))
+                  (looking-at "^@") ; only include lines of decorator
+                  (= (current-indentation) initial-indentation))
+        (forward-line -1))
+      (setq start (point))
+      ;; Now move down like the original code
+      (goto-char origin)
       (forward-line 1)
-      ;; 继续前进直到找到缩进级别小于或等于当前行的行
       (while (and (not (eobp))
                   (or (and (> (current-indentation) 0) 
                            (> (current-indentation) initial-indentation))
                       (looking-at "^$")))
-        (forward-line 1))
-      ;; 提取并返回块的内容
-      (buffer-substring-no-properties start (point)))))
+        (forward-line 1))      ;; Extract the block content
+      (let ((content (buffer-substring-no-properties start (point))))
+        ;; If :only-content is t, remove docstrings
+        (when (and (assoc :only-content args)
+                   (string-equal "t" (cdr (assoc :only-content args))))
+          ;; Remove docstrings following class or def declarations
+          ;; https://emacs.stackexchange.com/questions/58001/search-forward-regexp-with-back-reference
+          ;; as . does not match newlines, the .*? should be \\(.\\|\n\\)*?
+          ;; if you needed it to match with arbitrary multi-line TEXT. 
+          (setq content
+                (replace-regexp-in-string "\\(\"\"\"\\|'''\\)\\(.\\|\n\\)*?\\1\n?" "" content nil t)))
+        content))))
 
-(defun extract-elisp-s-expression ()
+
+(defun extract-elisp-s-expression (args)
   "Extract the smallest s-expression at the current point."
   (save-excursion
     (condition-case nil
@@ -356,22 +376,22 @@ Also convert org-id to file path. Error out if the link is invalid or file does 
             (setq start (point)))
           (forward-sexp)           ; Move to the end of the current s-expression
           (setq end (point))
-          (buffer-substring-no-properties start end))  ; Extract the s-expression as a string
+          (concat (buffer-substring-no-properties start end) "\n"))  ; Extract the s-expression as a string
       (error nil))))  ; Return nil if no valid s-expression is found
 
 (defvar org-imagine--mode-extract-function-map
   '((python-mode . extract-python-block)
     (emacs-lisp-mode . extract-elisp-s-expression)))
 
-(defun extract-block-for-mode ()
+(defun extract-block-for-mode (args)
   "extract code base one major-mode。"
   (let ((extract-func (cdr (assoc major-mode org-imagine--mode-extract-function-map))))
     (when extract-func
-      (funcall extract-func))))
+      (funcall extract-func args))))
 
-(defun extract-block-content-at-point ()
+(defun extract-block-content-at-point (options)
   "Extract the content at point and wrap it in an Org source block."
-  (let ((extracted-content (extract-block-for-mode))
+  (let ((extracted-content (extract-block-for-mode options))
         (original-mode (replace-regexp-in-string
                         "-mode\\'"
                         ""
@@ -380,6 +400,8 @@ Also convert org-id to file path. Error out if the link is invalid or file does 
       (let ((temp-buffer (generate-new-buffer "*org-imagine-temp*")))
         (with-current-buffer temp-buffer
           (insert extracted-content)
+          (goto-char (point-min))
+          (delete-blank-lines)
           ;; Use the captured mode for setting up the source block
           (goto-char (point-max))
           (delete-blank-lines)
@@ -393,6 +415,23 @@ Also convert org-id to file path. Error out if the link is invalid or file does 
         (kill-buffer temp-buffer))
       extracted-content)))
 
+(defun parse-option-string (option-string)
+  "Parse an option string with a file and key-value pairs."
+  (when (string-match "\\`\"\\(.*?\\)\"\\(.*\\)" option-string)
+    (let ((file (match-string 1 option-string))
+          (options-str (match-string 2 option-string)))
+      (let ((pairs (split-string (string-trim options-str) ":"))
+            options)
+        (dolist (pair pairs options)
+          ;; ignore empty
+          (unless (string-match-p "^\\s-*$" pair)
+            (let* ((key-value (split-string (string-trim pair)))
+                   (key (intern (concat ":" (car key-value))))
+                   (value (or (cadr key-value) "t")))
+              ;; 添加到结果列表
+              (push (cons key value) options))))
+        `((:file . ,file) ,@options)))))
+      
 
 (defun extract-block-from-target-file ()
   "Extract the class or function content from a src file at the point."
@@ -402,14 +441,13 @@ Also convert org-id to file path. Error out if the link is invalid or file does 
        (original-window (selected-window))
        (extracted-content ""))
     (unless (org-string-nw-p value) (user-error "No file to edit"))
-    (let ((file (and (string-match "\\`\"\\(.*?\\)\"\\|\\S-+" value)
-			         (or (match-string 1 value)
-			             (match-string 0 value)))))
+    (let* ((parsed-options (parse-option-string value))
+           (file (cdr (assoc ':file parsed-options))))
 	  (when (org-file-url-p file)
 	    (user-error "Files located with a URL cannot be edited"))
 	  (org-link-open-from-string-with-abbrev-list (format "[[%s]]" file))
 
-      (setq extracted-content (extract-block-content-at-point))
+      (setq extracted-content (extract-block-content-at-point parsed-options))
       (delete-window)
 
       (select-window original-window)
