@@ -330,10 +330,11 @@ Also convert org-id to file path. Error out if the link is invalid or file does 
 
 (defun extract-python-block (args)
   "Extract the content of the Python block at the current point based on indentation.
-If :only-content is t, remove docstrings from the block."
+If :only-contents is t, remove docstrings from the block."
   (save-excursion
     (let ((initial-indentation (current-indentation))
           (origin (point))
+          (min-indentation (current-indentation))
           start)
       ;; Move up to find the start of the block
       (forward-line -1)
@@ -342,6 +343,7 @@ If :only-content is t, remove docstrings from the block."
                   (looking-at "^@") ; only include lines of decorator
                   (= (current-indentation) initial-indentation))
         (forward-line -1))
+      (forward-line 1)
       (setq start (point))
       ;; Now move down like the original code
       (goto-char origin)
@@ -350,18 +352,26 @@ If :only-content is t, remove docstrings from the block."
                   (or (and (> (current-indentation) 0) 
                            (> (current-indentation) initial-indentation))
                       (looking-at "^$")))
+        (setq min-indentation (min min-indentation (current-indentation)))
         (forward-line 1))      ;; Extract the block content
       (let ((content (buffer-substring-no-properties start (point))))
-        ;; If :only-content is t, remove docstrings
-        (when (and (assoc :only-content args)
-                   (string-equal "t" (cdr (assoc :only-content args))))
+        ;; If :only-contents is t, remove docstrings
+        (when (and (assoc :only-contents args)
+                   (string-equal "t" (cdr (assoc :only-contents args))))
           ;; Remove docstrings following class or def declarations
           ;; https://emacs.stackexchange.com/questions/58001/search-forward-regexp-with-back-reference
           ;; as . does not match newlines, the .*? should be \\(.\\|\n\\)*?
           ;; if you needed it to match with arbitrary multi-line TEXT. 
+          ;; backup "\\(\"\"\"\\|'''\\)\\(.\\|\n\\)*?\\1\n?" this will remove \n after the second '''
           (setq content
-                (replace-regexp-in-string "\\(\"\"\"\\|'''\\)\\(.\\|\n\\)*?\\1\n?" "" content nil t)))
-        content))))
+                (replace-regexp-in-string "\\(\"\"\"\\|'''\\)\\(.\\|\n\\)*?\\1" "" content nil t)))
+        (with-temp-buffer
+          (insert content)
+          (goto-char (point-min))
+          (while (not (eobp))
+            (delete-char min-indentation)
+            (forward-line 1))
+          (buffer-string))))))
 
 
 (defun extract-elisp-s-expression (args)

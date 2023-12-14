@@ -83,7 +83,6 @@ this is my [[file:~/keyboards.pptx][custom keybinding]]
 
 ## Use case: src code insertion
 
-​     
 
 ```bash
 #+IMAGINE: "~/codes/parsing/lexer.py::class Lexer"
@@ -134,21 +133,36 @@ class Lexer:
 #+END_SRC
 ```
 
-​        support org link abbreviation:
-
-```org
+- support org link abbreviation:
+```bash
 #+LINK: lexer ~/codes/parsing/lexer.py::%s
 ```
+​  then you can represent the `Lexer` class with the following simplified link
+```bash
+#+IMAGINE: "lexer:class Lexer"
+```
 
-​         then you can represent the `Lexer` class with the following simplified link
+- org-imagine use indentations to discern the code section in python, so it can extract:
+  - function
+  - for/while loop
+  - if block (exclude else block)
+  - single expression
 
-     ```org
-     #+IMAGINE: "lexer:class Lexer"
-     ```
 
-​        When cursor is on the IMAGINE line, use `C-c '` to jump to the target link. 
+- support `:only-contents` argument for python code
+  ```bash
+  #+IMAGINE: "~/codes/parsing/lexer.py::class Lexer :only-contents"
+  ```
+  or 
+  ```bash
+  #+IMAGINE: "~/codes/parsing/lexer.py::class Lexer :only-contents t"
+  ```
+  these will remove the docstrings (comments will still be included in the src block)
 
-​        It is currently supporting only Python and Emacs Lisp  source code fetching
+- suport Emacs Lisp S-expressions
+
+- When cursor is on the IMAGINE line, use `C-c '` to jump to the buffer of target link. 
+
 
 ## Customization
 
@@ -233,5 +247,3 @@ Yasnippets for quick decoration:
 中文的说明和讨论： [org-imagine： 对 org 对象进行可视化的插件](https://emacs-china.org/t/org-imagine-org/22134)
 
 中文 Blog： [org imagine: 在 org-mode 中想象](https://www.hugchange.life/posts/org_imagine.html)
-    
-    
