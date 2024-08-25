@@ -30,7 +30,7 @@ after execute org-image-view
 (defun org-imagine-clear-cache (&optional dir)
   "clear cache files that not mentioned by files in current project."
   (interactive)
-  (let ((root (cdr (project-current)))
+  (let ((root (car (last (project-current))))
         (cache-dir (if dir dir org-imagine-cache-dir)))
     (dolist (imgpath (directory-files-recursively cache-dir ""))
       (let* ((imgname (file-name-nondirectory imgpath))
@@ -343,7 +343,7 @@ If :only-contents is t, remove docstrings from the block."
                   (looking-at "^@") ; only include lines of decorator
                   (= (current-indentation) initial-indentation))
         (forward-line -1))
-      (forward-line 1)
+      (when (not (bobp)) (forward-line 1))
       (setq start (point))
       ;; Now move down like the original code
       (goto-char origin)
